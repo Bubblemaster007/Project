@@ -1,0 +1,13 @@
+﻿Package: ExtremeScene_extreme_generation_package_clean_20260706_133018
+Created: 2026-07-06 13:30:19
+Purpose: Main code and data for current extreme load-wind-solar scenario generation workflow.
+
+Included:
+- code/: root Python scripts for extraction, risk metrics, EVT labels, hierarchical diffusion training/generation/evaluation, experiments, diagnostics, and related current trials.
+- baselines/: comparison baseline implementations currently kept with the project.
+- raw_data/: Singleton FY2019-FY2022 hourly wind/solar/load/weather CSV files.
+- prepared_dataset/: latest 36h extreme-event extraction result from outputs/real_singleton_2019_2022_extract_after_user_edit, including X.npy, cond/meta splits, event_mask, samples_evt_labeled.csv, diagnostics, and figures.
+- configs/: project config files.
+
+Excluded:
+- .venv, __pycache__, .git, temporary directories, large results/, and unrelated outputs/models.

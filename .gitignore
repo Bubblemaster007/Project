@@ -1,0 +1,27 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.venv/
+venv/
+
+# Pipeline outputs
+/outputs/
+/outputs_ch2/
+/topic2_remaining_code/outputs/
+/ExtremeScene_extreme_generation_package_clean_20260706_133018/outputs/
+/ExtremeScene_extreme_generation_package_clean_20260706_133018/prepared_dataset/
+
+# Large source datasets are managed outside Git
+/ExtremeScene_extreme_generation_package_clean_20260706_133018/raw_data/
+
+# Local document-extraction scratch files
+/_codex_prompt.docx
+/_extract_docx_text.py
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
