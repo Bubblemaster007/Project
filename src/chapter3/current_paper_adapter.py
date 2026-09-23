@@ -154,7 +154,14 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
         raise ValueError("event_samples must be at least one")
     sample_failure_sets = [failed_sets]
     sample_resource_sequences = [source]
-    sample_source_sequences = sample_source_load_sequences(source, seed, sample_count)
+    uncertainty_cfg = config.get("source_load_uncertainty", {})
+    sample_source_sequences = sample_source_load_sequences(
+        source, seed, sample_count,
+        load_sigma=float(uncertainty_cfg.get("load_sigma", 0.03)),
+        renewable_sigma=float(uncertainty_cfg.get("renewable_sigma", 0.06)),
+        persistence=float(uncertainty_cfg.get("persistence", 0.85)),
+        seed_offset=int(uncertainty_cfg.get("seed_offset", 700_000)),
+    )
     resource_failure_logs = [baseline_resource_failures]
     if event_starts and sample_count >= 2:
         for sample in range(1, sample_count):
@@ -216,8 +223,10 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
         "source_load_uncertainty": {
             "sample_count": sample_count,
             "model": "correlated multiplicative AR(1) residuals around the certified trajectory",
-            "load_sigma": 0.03, "renewable_sigma": 0.06,
-            "persistence": 0.85, "seed_offset": 700000,
+            "load_sigma": float(uncertainty_cfg.get("load_sigma", 0.03)),
+            "renewable_sigma": float(uncertainty_cfg.get("renewable_sigma", 0.06)),
+            "persistence": float(uncertainty_cfg.get("persistence", 0.85)),
+            "seed_offset": int(uncertainty_cfg.get("seed_offset", 700_000)),
             "reference_path_preserved": True,
         },
         "config_effective": {"topology_dir": str(case33_dir), "network": vars(cfg)},

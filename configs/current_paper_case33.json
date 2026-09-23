@@ -112,5 +112,11 @@
     "seed": 42,
     "regenerate": true,
     "event_samples": 10
+  },
+  "source_load_uncertainty": {
+    "load_sigma": 0.03,
+    "renewable_sigma": 0.06,
+    "persistence": 0.85,
+    "seed_offset": 700000
   }
 }

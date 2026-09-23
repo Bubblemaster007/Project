@@ -197,7 +197,8 @@ def run_conditional_event_samples(sequence: pd.DataFrame, sample_failure_sets: l
 def sample_source_load_sequences(sequence: pd.DataFrame, seed: int, sample_count: int,
                                  load_sigma: float = 0.03,
                                  renewable_sigma: float = 0.06,
-                                 persistence: float = 0.85) -> list[pd.DataFrame]:
+                                 persistence: float = 0.85,
+                                 seed_offset: int = 700_000) -> list[pd.DataFrame]:
     """Generate paired source/load uncertainty paths around the certified path.
 
     The first path is the unmodified reference trajectory. Other paths use
@@ -210,7 +211,7 @@ def sample_source_load_sequences(sequence: pd.DataFrame, seed: int, sample_count
     base = sequence.copy()
     paths = [base]
     n = len(base)
-    rng = np.random.default_rng(seed + 700_000)
+    rng = np.random.default_rng(seed + int(seed_offset))
     for sample_id in range(1, sample_count):
         out = base.copy()
         load_resid = np.zeros(n)
@@ -438,7 +439,14 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                            "max_deficit_kw": float(group.power_deficit_kw.max())})
     pd.DataFrame(phase_rows).to_csv(output_dir / "event_phase_metrics.csv", index=False)
     sample_failure_sets = [failed_sets]
-    source_sequences = sample_source_load_sequences(sequence, seed, event_samples)
+    uncertainty_cfg = project_config.get("source_load_uncertainty", {})
+    source_sequences = sample_source_load_sequences(
+        sequence, seed, event_samples,
+        load_sigma=float(uncertainty_cfg.get("load_sigma", 0.03)),
+        renewable_sigma=float(uncertainty_cfg.get("renewable_sigma", 0.06)),
+        persistence=float(uncertainty_cfg.get("persistence", 0.85)),
+        seed_offset=int(uncertainty_cfg.get("seed_offset", 700_000)),
+    )
     for sample in range(1, event_samples):
         other, _, _ = simulate_line_states(raw.wind_speed.to_numpy(float), line_ids,
                                            seed + 1000 * sample, raw.time, event_ids)
@@ -489,10 +497,10 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                "source_load_uncertainty": {
                    "sample_count": event_samples,
                    "model": "correlated multiplicative AR(1) residuals around the certified trajectory",
-                   "load_sigma": 0.03,
-                   "renewable_sigma": 0.06,
-                   "persistence": 0.85,
-                   "seed_offset": 700000,
+                   "load_sigma": float(uncertainty_cfg.get("load_sigma", 0.03)),
+                   "renewable_sigma": float(uncertainty_cfg.get("renewable_sigma", 0.06)),
+                   "persistence": float(uncertainty_cfg.get("persistence", 0.85)),
+                   "seed_offset": int(uncertainty_cfg.get("seed_offset", 700_000)),
                    "reference_path_preserved": True,
                },
                "paired_sensitivity": str(output_dir / "paired_sensitivity_summary.csv"),
