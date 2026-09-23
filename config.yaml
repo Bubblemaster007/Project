@@ -67,6 +67,14 @@
     "critical_load_ratio": 0.2,
     "important_load_ratio": 0.35
   },
+  "case33_network": {
+    "branch_limit_kw": 5000.0,
+    "wind_node": 18,
+    "pv_node": 30,
+    "voltage_min_pu": 0.95,
+    "voltage_max_pu": 1.05,
+    "linear_voltage_guard_pu": 0.955
+  },
   "strategy_thresholds": {
     "loss_of_load_probability": 0.02,
     "curtailment_probability": 0.05,
@@ -102,6 +110,7 @@
     "dataset": "singleton",
     "year": 2021,
     "seed": 42,
-    "regenerate": true
+    "regenerate": true,
+    "event_samples": 10
   }
 }

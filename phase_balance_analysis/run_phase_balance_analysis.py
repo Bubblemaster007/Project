@@ -1,4 +1,4 @@
-"""兰考算例极端事件全过程分阶段概率性平衡分析入口。"""
+"""独立典型场景的四阶段概率性平衡分析入口。"""
 
 from __future__ import annotations
 
@@ -59,33 +59,10 @@ def _apply_metric_calibration(
     metrics: pd.DataFrame,
     calibration_config: dict[str, Any],
 ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
-    """显式校准指定阶段的概率展示值，并保留可审计的原值记录。"""
-    calibrated = metrics.copy()
-    audit: list[dict[str, Any]] = []
-    allowed_metrics = {"electricity_shortage_probability_pct"}
-    for item in calibration_config.get("overrides", []):
-        stage = str(item.get("stage", "")).strip()
-        metric = str(item.get("metric", "")).strip()
-        value = float(item.get("value"))
-        if metric not in allowed_metrics:
-            raise ValueError(f"不允许校准非概率指标：{metric}")
-        if not 0.0 <= value <= 100.0:
-            raise ValueError(f"概率校准值必须位于 [0, 100]：{value}")
-        mask = calibrated["stage"].astype(str).eq(stage)
-        if int(mask.sum()) != 1:
-            raise ValueError(f"概率校准阶段必须唯一存在：{stage}")
-        original = float(calibrated.loc[mask, metric].iloc[0])
-        calibrated.loc[mask, metric] = value
-        audit.append(
-            {
-                "stage": stage,
-                "metric": metric,
-                "original_value": original,
-                "calibrated_value": value,
-                "reason": str(item.get("reason", "")).strip(),
-            }
-        )
-    return calibrated, audit
+    """Reject display overrides so charts always use computed metrics."""
+    if calibration_config.get("overrides"):
+        raise ValueError("正式阶段指标不允许展示值覆盖；请使用逐时原始计算结果")
+    return metrics.copy(), []
 
 
 def _markdown_metrics(metrics: pd.DataFrame) -> str:
@@ -175,10 +152,10 @@ def _write_analysis_report(
         [
             f"- 随机种子：{scenario_assumptions.get('random_seed', '不适用')}",
             f"- 蒙特卡洛次数：{scenario_assumptions.get('simulation_count', int(metrics['simulation_count'].iloc[0]))}",
-            f"- 兰考峰值负荷：{scenario_assumptions.get('peak_load_mw', float('nan')):.3f} MW",
+            f"- 算例峰值负荷：{scenario_assumptions.get('peak_load_mw', float('nan')):.3f} MW",
             f"- 风电装机：{scenario_assumptions.get('wind_capacity_mw', float('nan')):.3f} MW",
             f"- 光伏装机：{scenario_assumptions.get('pv_capacity_mw', float('nan')):.3f} MW",
-            "- 风光装机采用高渗透率典型测试设定，用于同时检验缺电与弃电指标；不代表兰考实测装机。",
+            "- 风光装机采用高渗透率典型测试设定，用于同时检验缺电与弃电指标；不代表实测装机。",
             f"- 储能功率：{scenario_assumptions.get('storage_power_mw', float('nan')):.3f} MW，"
             f"储能容量：{scenario_assumptions.get('storage_power_mw', float('nan')) * 3.0:.3f} MWh",
             f"- 外部受电通道：{scenario_assumptions.get('grid_channel_mw', float('nan')):.3f} MW",
@@ -262,7 +239,7 @@ def _write_analysis_report(
 
 {calibration_lines}
 
-未经校准的原始阶段指标保存在 `{raw_metrics_path}`。校准仅改变上述阶段概率汇总值，逐时功率序列、最大缺额、EENS 及其他阶段指标均保持原计算结果。
+原始阶段指标保存在 `{raw_metrics_path}`。主表和图表直接使用相同的计算值。
 
 ## 7. 灾害演化逻辑检查
 
@@ -270,12 +247,12 @@ def _write_analysis_report(
 
 汇总图自动说明：{summary_note}
 
-除上述明确记录的单项概率校准外，其余趋势均由输入的连续灾害过程和约束调度计算得到。
+阶段趋势由输入的连续灾害过程和约束调度计算得到，未按预期排序修改结果。
 
 ## 8. 数据缺失与模型限制
 
-- 当前采用 {int(metrics['simulation_count'].iloc[0])} 次兰考拓扑驱动典型蒙特卡洛仿真，用于方法验证和合理性展示，不代表实测频率或正式规划结论。
-- 兰考 Excel 提供拓扑、节点负荷和线路容量；风光荷曲线、灾害强度及阶段设备可用率为可复现的典型仿真假设。
+- 当前采用 {int(metrics['simulation_count'].iloc[0])} 次典型蒙特卡洛仿真，用于方法验证，不代表实测频率或正式规划结论。
+- 所选拓扑提供节点负荷和支路参数；风光荷曲线、灾害强度及阶段设备可用率为可复现的典型仿真假设。
 - 四阶段标签随典型仿真输入直接生成，仍采用配置中的 36 h 测试阶段边界。
 - 本次优先复用第四章含储能 SOC、充放电互斥、应急电源和网架容量约束的调度结果；未用简化供需差替代该结果。
 - 若补充多条独立蒙特卡洛序列、真实设备修复状态和真实灾害阶段标签，入口脚本可直接重新聚合，不需修改指标公式。
@@ -359,10 +336,7 @@ def run_analysis(config_path: Path) -> dict[str, Any]:
         runtime_config.get("logic_validation", {}),
         logic_report_path,
     )
-    if not all(bool(item["passed"]) for item in logic_results):
-        raise AssertionError(
-            f"阶段演化逻辑校验未通过，已停止绘图：{logic_report_path}"
-        )
+    # Stage ordering is a diagnostic, not a target that can suppress data.
 
     main, calibration_audit = _apply_metric_calibration(
         raw_main,
@@ -400,7 +374,7 @@ def run_analysis(config_path: Path) -> dict[str, Any]:
         "simulation_count": int(main["simulation_count"].iloc[0]),
         "time_step_hours": time_step_hours,
         "all_tests_passed": True,
-        "all_logic_checks_passed": True,
+        "all_logic_checks_passed": all(bool(item["passed"]) for item in logic_results),
         "metric_calibration": calibration_audit,
     }
     (results_dir / "run_summary.json").write_text(
@@ -425,7 +399,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     summary = run_analysis(Path(args.config).resolve())
-    print("兰考算例分阶段概率性平衡分析完成：")
+    print("典型算例分阶段概率性平衡分析完成：")
     print(f"- 主指标：{summary['phase_metrics_main']}")
     print(f"- 测试报告：{summary['test_report']}")
     print(f"- 分析报告：{summary['analysis_report']}")

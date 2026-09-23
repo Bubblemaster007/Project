@@ -7,11 +7,9 @@ import sys
 import unittest
 
 
-PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = PACKAGE_ROOT.parent
-for path in [PACKAGE_ROOT, PROJECT_ROOT]:
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from phase_balance_analysis.src.validation import run_validation_suite
 

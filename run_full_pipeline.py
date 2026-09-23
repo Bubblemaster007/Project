@@ -53,7 +53,7 @@ def build_chapter2_config(config: dict[str, Any]) -> Chapter2Config:
 
 def run_pipeline(config_path: str | Path, demo: bool = False) -> dict[str, Any]:
     config = load_config(config_path)
-    if config.get("scenario_method") == "current_paper":
+    if config.get("scenario_method") == "current_paper" and not demo:
         from src.chapter3.current_paper_adapter import run_current_pipeline
         return run_current_pipeline(config_path, config)
     output_root = ensure_dir(config.get("output_dir", "outputs"))
@@ -197,11 +197,52 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the topic 2 full source-load-to-planning pipeline.")
     parser.add_argument("--config", default="config.yaml", help="Path to config.yaml")
     parser.add_argument("--demo", action="store_true", help="Generate demo source-load data before running")
+    parser.add_argument("--paper-reference-csv", type=Path,
+                        help="Run the IEEE 33-bus integration baseline with the paper's raw hourly CSV")
+    parser.add_argument("--paper-annual-csv", type=Path,
+                        help="Run the current-paper network downstream from an existing certified annual CSV")
+    parser.add_argument("--paper-provenance-json", type=Path,
+                        help="Provenance JSON accompanying --paper-annual-csv")
+    parser.add_argument("--event-samples", type=int, default=30,
+                        help="Number of conditional line-state samples for the selected event")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     args = parse_args(argv)
+    if args.paper_reference_csv is not None and args.paper_annual_csv is not None:
+        raise ValueError("Choose either --paper-reference-csv or --paper-annual-csv")
+    if args.paper_annual_csv is not None:
+        from src.chapter3.current_paper_adapter import run_paper_downstream
+        import json
+
+        config = load_config(args.config)
+        output_root = Path(config.get("output_dir", "outputs"))
+        if not output_root.is_absolute():
+            output_root = ROOT / output_root
+        provenance = (json.loads(args.paper_provenance_json.read_text(encoding="utf-8"))
+                      if args.paper_provenance_json else None)
+        out = output_root / "current_paper/imported_annual"
+        summary = run_paper_downstream(pd.read_csv(args.paper_annual_csv), config, out, provenance)
+        print("已导入年度序列并完成 IEEE 33 节点下游分析：")
+        print(f"- 逐时平衡：{summary['chapter4']['hourly_balance']}")
+        print(f"- 结果摘要：{out / 'run_summary.json'}")
+        return summary
+    if args.paper_reference_csv is not None:
+        from scripts.run_paper_reference_case33 import run
+
+        config = load_config(args.config)
+        output_root = Path(config.get("output_dir", "outputs"))
+        if not output_root.is_absolute():
+            output_root = ROOT / output_root
+        reference_out = output_root / "paper_reference_case33"
+        summary = run(args.paper_reference_csv, reference_out,
+                      seed=int(config.get("random_seed", 42)),
+                      event_samples=args.event_samples, project_config=config)
+        print("论文参考数据与 IEEE 33 节点联调完成：")
+        print(f"- 逐时平衡：{summary['hourly_balance']}")
+        print(f"- 结果摘要：{reference_out / 'run_summary.json'}")
+        return summary
     summary = run_pipeline(args.config, demo=args.demo)
     print("课题2全流程运行完成。关键输出：")
     print(f"- 第3章8760 h随机生产模拟序列：{summary['chapter3']['annual_random_production_sequence']}")

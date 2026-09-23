@@ -32,7 +32,9 @@ def build_coupled_condition(
         if col not in scene.columns:
             raise ValueError(f"extreme_scene_df 缺少字段：{col}")
 
-    coupled = scene.merge(cap, on="timestamp", how="left").fillna(0.0)
+    coupled = scene.merge(cap, on="timestamp", how="left", validate="one_to_one")
+    if coupled[cap.columns.drop("timestamp")].isna().any().any():
+        raise ValueError("capacity data does not cover every scene timestamp")
 
     if load_reachability_df is not None:
         reach = _ensure_timestamp(load_reachability_df, "load_reachability_df")
@@ -53,12 +55,10 @@ def build_coupled_condition(
         if col not in coupled.columns:
             coupled[col] = 0.0
 
-    if coupled["available_kw_grid_channel"].sum() == 0.0:
+    if "available_kw_grid_channel" not in cap.columns:
         coupled["available_kw_grid_channel"] = external_grid_available_kw
 
-    renewable_factor = np.ones(len(coupled))
-    if coupled["available_kw_renewable"].max() > 0:
-        renewable_factor = np.minimum(1.0, coupled["available_kw_renewable"] / (coupled["wind_kw"] + coupled["pv_kw"] + 1e-6))
+    renewable_factor = np.minimum(1.0, coupled["available_kw_renewable"] / (coupled["wind_kw"] + coupled["pv_kw"] + 1e-6))
 
     coupled["available_wind_kw"] = coupled["wind_kw"] * renewable_factor
     coupled["available_pv_kw"] = coupled["pv_kw"] * renewable_factor

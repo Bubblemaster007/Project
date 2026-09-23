@@ -32,10 +32,13 @@ def _series_or_default(df: pd.DataFrame, col: str, default: float) -> pd.Series:
 
 
 def _resource_limit(df: pd.DataFrame, col: str, default: float, is_extreme: pd.Series) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(default, index=df.index, dtype=float).clip(lower=0.0)
     raw = _series_or_default(df, col, np.nan)
     out = raw.copy()
-    out.loc[~is_extreme] = default
-    out = out.fillna(default)
+    out.loc[~is_extreme & out.isna()] = default
+    if out.isna().any():
+        raise ValueError(f"{col} has missing capacity during an extreme condition")
     return out.clip(lower=0.0)
 
 
@@ -86,8 +89,10 @@ def analyze_power_energy_balance(
         storage_limit = _resource_limit(group, "available_kw_storage", cfg.storage_power_kw, is_extreme)
         emergency_limit = _resource_limit(group, "available_kw_emergency_gen", cfg.emergency_gen_kw, is_extreme)
         grid_limit = _resource_limit(group, "available_kw_grid_channel", cfg.grid_channel_kw, is_extreme)
-        line_limit = _series_or_default(group, "available_kw_line", np.inf).replace(0.0, np.inf)
-        transformer_limit = _series_or_default(group, "available_kw_transformer", np.inf).replace(0.0, np.inf)
+        line_limit = _series_or_default(group, "available_kw_line", np.inf)
+        transformer_limit = _series_or_default(group, "available_kw_transformer", np.inf)
+        if line_limit.isna().any() or transformer_limit.isna().any():
+            raise ValueError("network capacity contains missing values")
         network_limit = pd.concat([line_limit, transformer_limit], axis=1).min(axis=1).replace(np.inf, cfg.firm_supply_kw + cfg.grid_channel_kw)
 
         energy_capacity = max(float(cfg.storage_energy_kwh), 0.0)
@@ -121,11 +126,11 @@ def analyze_power_energy_balance(
                 charge = min(surplus, float(storage_limit.iloc[i]), energy_room_as_power)
                 soc += charge * cfg.eta_charge
 
-            deficit = max(remaining, 0.0)
+            deficit = max(remaining, 0.0) + max(float(raw_load.iloc[i]) - demand, 0.0)
             curtailment = max(re_kw - demand - charge, 0.0)
-            load_served = demand - deficit
-            critical_load = demand * cfg.critical_load_ratio
-            important_load = demand * cfg.important_load_ratio
+            load_served = max(demand - max(remaining, 0.0), 0.0)
+            critical_load = float(raw_load.iloc[i]) * cfg.critical_load_ratio
+            important_load = float(raw_load.iloc[i]) * cfg.important_load_ratio
             critical_served = min(load_served, critical_load)
             important_served = min(max(load_served - critical_load, 0.0), important_load)
 

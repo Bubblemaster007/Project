@@ -1,5 +1,5 @@
 {
-  "_说明": "兰考拓扑驱动典型仿真测试算例的分阶段概率性平衡分析配置。输入过程为可复现的合成场景，不是实测数据。",
+  "_说明": "IEEE 33 节点典型仿真测试算例的分阶段分析配置。输入过程为可复现的合成场景，不是实测数据。",
   "random_seed": 2026,
   "data": {
     "_说明": "相对路径均以 phase_balance_analysis 目录为基准解析。",
@@ -16,7 +16,7 @@
   "typical_scenario": {
     "topology_type": "case33",
     "case33_dir": "data/case33",
-    "_说明": "当原36 h数据不具备连续灾前—冲击—持续—恢复过程时，按兰考拓扑规模生成可复现的典型仿真测试数据。",
+    "_说明": "当原36 h数据不具备连续灾前—冲击—持续—恢复过程时，按所选拓扑规模生成可复现的典型仿真测试数据。",
     "simulation_count": 200,
     "event_start_time": "2026-07-15 00:00:00",
     "wind_capacity_scale": 0.25,
@@ -85,17 +85,7 @@
       "important_load_ratio": 0.35
     }
   },
-  "metric_calibration": {
-    "_说明": "保留逐时物理仿真及其他指标原值，仅对明确指定的阶段聚合概率作展示校准；原始指标另行输出。",
-    "overrides": [
-      {
-        "stage": "灾害持续",
-        "metric": "electricity_shortage_probability_pct",
-        "value": 60.38,
-        "reason": "按展示要求将灾害持续阶段电力不足概率校准至约60%，其余指标保持原计算值。"
-      }
-    ]
-  },
+  "metric_calibration": {"overrides": []},
   "phase_segmentation": {
     "_说明": "如果输入中没有四类灾害阶段标签，则按 36 h 事件窗口使用以下测试划分；计算函数内部不硬编码边界。",
     "strategy": "prefer_existing",
@@ -113,7 +103,7 @@
     "save_hourly_detail": true
   },
   "logic_validation": {
-    "_说明": "不满足以下阶段物理逻辑时终止绘图，防止错误结果进入主图。",
+    "_说明": "阶段演化趋势只做诊断并写入报告，不按预设排序修改数值或阻止输出。",
     "maximum_preparation_shortage_probability_pct": 5.0,
     "require_sustained_eens_above_impact": true,
     "require_recovery_eens_below_sustained": true,
@@ -125,6 +115,6 @@
   "plotting": {
     "_说明": "白底、蓝灰配色、3:1 超宽扁平图；PNG 以 300 dpi 保存，同时输出 SVG 和 PDF。",
     "dpi": 300,
-    "figure_label": "兰考拓扑驱动典型仿真结果｜N=200｜测试阶段划分｜非实测数据"
+    "figure_label": "IEEE 33 节点典型仿真结果｜N=200｜测试阶段划分｜非实测数据"
   }
 }

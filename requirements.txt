@@ -1,5 +1,6 @@
 numpy
 pandas
+scipy>=1.11
 openpyxl
 pytest
 Pillow

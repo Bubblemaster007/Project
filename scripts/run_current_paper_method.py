@@ -13,14 +13,20 @@ def main():
     parser.add_argument('--year',type=int,default=2021)
     parser.add_argument('--seed',type=int,default=42)
     parser.add_argument('--regenerate',action='store_true')
+    parser.add_argument('--output-root',type=Path,default=PROJECT/'outputs/current_paper')
+    parser.add_argument('--source-csv',type=Path,help='Override the frozen metadata source path after moving the paper repository')
     args=parser.parse_args(); paper=Path(args.paper_root);sys.path.insert(0,str(paper))
     from annual_historical_calendar import fit_calendar,sample_calendar,placement_candidates
     from annual_transition_certified import repair_certified
     from annual_calendar_assignment import assign
     root=paper/'publication_protocol';data=root/'data/main'/args.dataset
-    out=PROJECT/'outputs/current_paper'/args.dataset/str(args.year)/f'seed{args.seed}';out.mkdir(parents=True,exist_ok=True)
+    out=args.output_root/args.dataset/str(args.year)/f'seed{args.seed}';out.mkdir(parents=True,exist_ok=True)
     fitted=json.loads((data/'fitted_parameters.json').read_text())
-    raw=pd.read_csv(fitted['source'],parse_dates=['time']).sort_values('time')
+    source_path=args.source_csv or Path(fitted['source'])
+    if not source_path.is_absolute():source_path=paper/source_path
+    if not source_path.is_file():
+        raise FileNotFoundError(f'Paper reference source CSV is missing: {source_path}; pass --source-csv')
+    raw=pd.read_csv(source_path,parse_dates=['time']).sort_values('time')
     train=raw[raw.time<pd.Timestamp(fitted['train_end'])];target=raw[raw.time.dt.year.eq(args.year)]
     if target.empty:raise ValueError('Target year unavailable')
     meta=pd.read_csv(data/'meta_train.csv');mask=np.load(data/'event_mask_train.npy').astype(bool)
@@ -77,10 +83,15 @@ def main():
     annual=pd.DataFrame(y,columns=['load_kw','wind_kw','pv_kw']);annual.insert(0,'timestamp',times)
     annual['event_id']=event_id;annual['event_core']=coremask;annual['is_extreme_condition']=(event_id>=0).astype(int)
     annual['random_sequence_id']=f'paper_{args.dataset}_{args.seed}';annual['sequence_weight']=1.
+    for weather_col in ('wind_speed','temp','irradiance','precipitation','icing','dust'):
+        if weather_col in target.columns:
+            annual[weather_col]=target[weather_col].to_numpy()
+    annual['weather_pairing']=np.where(event_id>=0,'reference_calendar_weather_unadjusted',
+                                       'reference_calendar_weather')
     annual.to_csv(out/'annual_source_load.csv',index=False)
     pd.DataFrame(rows).to_csv(out/'events.csv',index=False);pd.DataFrame(candidates).to_csv(out/'candidates.csv',index=False);pd.DataFrame(failures).to_csv(out/'infeasible.csv',index=False)
     (out/'optimization_certificate.json').write_text(json.dumps(proof,indent=2))
-    inputs=[data/'fitted_parameters.json',data/'meta_train.csv',data/'event_mask_train.npy',bank/'planning_conditions.csv',bank/'planning.npy',Path(fitted['source'])]
+    inputs=[data/'fitted_parameters.json',data/'meta_train.csv',data/'event_mask_train.npy',bank/'planning_conditions.csv',bank/'planning.npy',source_path]
     inputs+=list(paper.glob('annual*.py'))+list(paper.glob('publication*.py'))
     summary=dict(method='SC-RCRB + historical calendar + certified LP + adaptive_fair_transport',dataset=args.dataset,year=args.year,seed=args.seed,requested=len(rows),embedded=len(chosen),complete=len(rows)==len(chosen),generation='fresh inference from frozen paper model' if args.regenerate else 'existing paper candidate bank',common_kw_scale=factor,probability_scope='reference-data conditional stress simulation; not Alashankou annual probability',sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs})
     (out/'provenance.json').write_text(json.dumps(summary,indent=2));print({k:v for k,v in summary.items() if k!='sha256'})
