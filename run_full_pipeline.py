@@ -27,6 +27,7 @@ from data_schema import Chapter2Config, StageScenarioConfig
 from src.chapter3.extreme_generator_adapter import build_extreme_scene
 from src.chapter3.lankao_topology_adapter import (
     build_device_params_from_lankao,
+    build_device_params_from_case33,
     build_load_reachability,
 )
 from src.chapter4.balance_analyzer_adapter import run_balance_analysis
@@ -52,6 +53,9 @@ def build_chapter2_config(config: dict[str, Any]) -> Chapter2Config:
 
 def run_pipeline(config_path: str | Path, demo: bool = False) -> dict[str, Any]:
     config = load_config(config_path)
+    if config.get("scenario_method") == "current_paper":
+        from src.chapter3.current_paper_adapter import run_current_pipeline
+        return run_current_pipeline(config_path, config)
     output_root = ensure_dir(config.get("output_dir", "outputs"))
     data_root = ensure_dir(config.get("data_dir", "data"))
     demo_dir = ensure_dir(data_root / "demo")
@@ -59,12 +63,14 @@ def run_pipeline(config_path: str | Path, demo: bool = False) -> dict[str, Any]:
 
     topology_cfg = config.get("topology", {})
     lankao_excel = Path(topology_cfg.get("lankao_excel", "兰考算例数据.xlsx"))
+    topology_type = topology_cfg.get("type", "lankao")
+    case33_dir = ROOT / topology_cfg.get("case33_dir", "data/case33")
 
     historical_csv = Path(config["chapter2"].get("historical_csv", config["demo"]["historical_csv"]))
     if demo or not historical_csv.exists():
         historical_csv = save_demo_history(
             output_dir=demo_dir,
-            excel_path=lankao_excel,
+            excel_path=(case33_dir / "nodes.csv") if topology_type == "case33" else lankao_excel,
             year=int(config.get("demo", {}).get("year", 2025)),
             random_seed=random_seed,
         )
@@ -90,7 +96,10 @@ def run_pipeline(config_path: str | Path, demo: bool = False) -> dict[str, Any]:
     extreme_path = write_csv(extreme_scene, chapter3_out / "extreme_36h.csv")
     hazard_path = write_csv(hazard_36h, chapter3_out / "hazard_36h.csv")
 
-    device_params, lines, nodes, topology_meta = build_device_params_from_lankao(lankao_excel, topology_cfg)
+    if topology_type == "case33":
+        device_params, lines, nodes, topology_meta = build_device_params_from_case33(case33_dir, topology_cfg)
+    else:
+        device_params, lines, nodes, topology_meta = build_device_params_from_lankao(lankao_excel, topology_cfg)
     device_params_path = write_csv(device_params, chapter3_out / "device_params.csv")
     lines_path = write_csv(lines, chapter3_out / "lankao_lines.csv")
     nodes_path = write_csv(nodes, chapter3_out / "lankao_nodes.csv")
@@ -127,7 +136,8 @@ def run_pipeline(config_path: str | Path, demo: bool = False) -> dict[str, Any]:
     write_json(
         chapter3_out / "topology_summary.json",
         {
-            "lankao_excel": str(lankao_excel),
+            "topology_type": topology_type,
+            "topology_source": str(case33_dir if topology_type == "case33" else lankao_excel),
             "metadata": topology_meta,
             "device_type_counts": device_params["device_type"].value_counts().to_dict(),
             "extreme_generator": extreme_meta,

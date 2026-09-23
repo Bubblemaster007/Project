@@ -5,8 +5,12 @@ from typing import Iterable, Optional
 
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn.functional as F
+except ModuleNotFoundError:  # preprocessing/EVT path does not require PyTorch
+    torch = None
+    F = None
 
 
 @dataclass

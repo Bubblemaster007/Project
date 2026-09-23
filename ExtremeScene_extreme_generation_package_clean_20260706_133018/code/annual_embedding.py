@@ -12,6 +12,16 @@ import pandas as pd
 
 
 CHANNELS = ["load", "wind_power", "solar_power"]
+
+def _mock_background(hours: int = 8760) -> pd.DataFrame:
+    """Small deterministic background used by the paper demo launcher."""
+    t = pd.date_range("2025-01-01", periods=hours, freq="h")
+    h = np.arange(hours)
+    load = 1000.0 + 120.0*np.sin(2*np.pi*(h % 24)/24 - 1.0)
+    wind = np.clip(280.0 + 80.0*np.sin(2*np.pi*h/168), 0, None)
+    solar = np.clip(500.0*np.sin(np.pi*((h % 24)-6)/12), 0, None)
+    return pd.DataFrame({"time": t, "load": load, "wind_power": wind,
+                         "solar_power": solar, "month": t.month})
 ID_COLUMNS = ["event_id", "scenario_id", "generated_id", "sample_id"]
 STEP_COLUMNS = ["t", "hour", "step", "time_idx", "time_index"]
 REQUIRED_META_COLUMNS = ["month", "event_type", "severity_level"]

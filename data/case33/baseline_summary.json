@@ -1,0 +1,10 @@
+[
+  {
+    "bus_count":33,
+    "branch_count":32,
+    "total_load_kw":3715.0,
+    "min_voltage_pu":0.9597576053,
+    "max_voltage_pu":1.0,
+    "estimated_loss_kw":186.2923362891
+  }
+]

@@ -1,8 +1,19 @@
 # 课题2全流程联调项目
 
-本项目把现有第2章源荷动态预测代码、极端风光荷场景生成包、第3章故障耦合代码、第4章电力电量平衡分析、第5章策略触发和第6章源储规划串成一个可运行流程。
+本项目把当前论文主方法（SC-RCRB 极端场景生成、风险/结构校准、历史日历年度嵌入、局部过渡认证和全局位置分配）与第3章设备故障、第4章电力电量平衡、第5章策略触发和第6章源储配置演示串成一个可运行流程。
 
-当前网架拓扑先使用 `兰考算例数据.xlsx` 代替真实拓扑。程序会读取其中的 `线路`、`节点` 工作表，生成第3章故障模型需要的 `device_params.csv`，并把线路、主变、储能、应急电源、外部通道和新能源汇集设备纳入故障概率与可用容量计算。
+## 当前进度（2026-09-23）
+
+- 已下载并转换 MATPOWER `case33bw`，形成 33 节点、32 条径向支路的测试网络；基准潮流最低电压约 0.9598 p.u.、估算网损约 186.3 kW。
+- 已接入 `/Users/bubble/Code_Paper/ExtremeScene` 的当前论文主方法：SC-RCRB 条件残差生成、风险与结构校准、历史日历采样、局部 LP 认证和 `adaptive_fair_transport` 全局位置分配。
+- 已在参考 `singleton` 数据上重新生成并嵌入 2021 年年度序列：72 个历史请求成功嵌入 69 个，3 个失败请求保留在事件级结果中；因此当前结果不是“全部请求完整嵌入”。
+- 已将认证后的年度源荷序列接入设备故障概率、故障容量修正、逐时电力电量平衡、策略触发和配置建议模块。
+- 论文仓库的年度日历/位置分配/局部过渡测试共 21 项通过。阿拉山口天气、源荷和设备参数尚未接入；当前结果属于方法联调和 IEEE 33 节点验证，不是阿拉山口正式结论。
+- 当前下游仍是验证版：设备状态为示范性故障抽样，平衡采用汇总容量模型，配置采用启发式建议；节点级故障潮流、完整故障—修复过程和机会约束配置尚未完成。
+
+当前论文方法配置和运行结果见：`configs/current_paper_case33.json`、`outputs/current_paper/singleton/2021/seed42/`。来源、参数和代码哈希记录在该目录的 `provenance.json`，进一步说明见 `临时文件/当前论文方法替换说明.md`（该文件在项目外部，不影响运行）。
+
+默认 `config.yaml` 使用 IEEE 33 节点测试网络；兰考 Excel 仍作为兼容输入保留。真实阿拉山口数据到位后，应替换拓扑、源荷、天气和设备参数，并重新校准脆弱性曲线。
 
 ## 目录说明
 
@@ -10,8 +21,12 @@
 - `config.yaml`：路径、近中远期参数、兰考拓扑派生参数、平衡分析资源参数、策略阈值和规划参数。
 - `src/chapter3/`：极端场景 adapter、兰考拓扑 adapter。
 - `src/chapter4/`：电力电量平衡分析 adapter 与可运行实现。
+- `phase_balance_analysis/`：承接第四章逐时调度结果，按灾前准备、灾害冲击、灾害持续、灾后恢复四阶段计算六项概率性平衡指标，并输出测试报告与 PNG/SVG/PDF 图表。
 - `topic2_remaining_code/`：已有第3章、第5章、第6章核心模块，保持原算法逻辑。
 - `ExtremeScene_extreme_generation_package_clean_20260706_133018/`：已有极端风光荷生成代码包，训练/生成算法保留；demo 流程通过 adapter 生成统一字段的 36 h 极端场景。
+- `data/case33/`：MATPOWER `case33bw.m` 及转换后的 `nodes.csv`、`lines.csv`。
+- `scripts/run_current_paper_method.py`：调用 Code_Paper 当前 SC-RCRB 与年度嵌入方法。
+- `src/chapter3/current_paper_adapter.py`：把论文年度序列接入课题2下游流程。
 - `scripts/`：分章运行脚本。
 - `tests/`：字段、章节和端到端测试。
 
@@ -19,6 +34,13 @@
 
 ```powershell
 python run_full_pipeline.py --config config.yaml --demo
+```
+
+运行当前论文主方法和 IEEE 33 节点验证：
+
+```bash
+/Users/bubble/Code_Paper/.venv/bin/python run_full_pipeline.py \
+  --config configs/current_paper_case33.json
 ```
 
 分步运行：
@@ -35,6 +57,13 @@ python scripts/run_chapter5_6.py
 
 ```powershell
 python -m pytest tests -q
+```
+
+运行兰考算例的极端事件全过程分阶段平衡分析：
+
+```powershell
+cd phase_balance_analysis
+python run_phase_balance_analysis.py --config config/phase_balance_config.yaml
 ```
 
 ## 关键输入字段

@@ -12,6 +12,9 @@ def estimate_lankao_peak_load_kw(excel_path: str | Path) -> float:
     path = Path(excel_path)
     if not path.exists():
         return 42000.0
+    if path.suffix.lower() == ".csv":
+        data = pd.read_csv(path)
+        return float(pd.to_numeric(data.get("pd_kw", pd.Series(dtype=float)), errors="coerce").fillna(0).sum()) or 42000.0
     raw = pd.read_excel(path, sheet_name="节点", header=None)
     transformer_load = pd.to_numeric(raw.iloc[:2, 1], errors="coerce").dropna()
     if not transformer_load.empty and float(transformer_load.sum()) > 0:

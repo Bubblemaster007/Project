@@ -148,6 +148,33 @@ def build_device_params_from_lankao(excel_path: str | Path, config: dict[str, An
     return device_params, lines, nodes, metadata
 
 
+def build_device_params_from_case33(data_dir: str | Path, config: dict[str, Any] | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, float]]:
+    """Build the same device tables from the downloaded IEEE/Baran-Wu 33-bus CSVs."""
+    root = Path(data_dir)
+    lines = pd.read_csv(root / "lines.csv")
+    nodes = pd.read_csv(root / "nodes.csv")
+    peak_load_kw = float(nodes["pd_kw"].sum())
+    devices = []
+    for _, row in lines.iterrows():
+        devices.append({"device_id": f"line_{int(row.line):03d}", "device_type": "line",
+                        "from_node": int(row.from_node), "to_node": int(row.to_node),
+                        "rated_kw": max(500.0, peak_load_kw / 8.0), **_line_fragility(1.0),
+                        "normal_factor": 1.0, "derate_factor": 0.55, "recovery_factor": 0.80})
+    for device_id, device_type, scale in [("transformer_case33", "transformer", .65),
+                                          ("storage_case33", "storage", .08),
+                                          ("emergency_gen_case33", "emergency_gen", .10),
+                                          ("grid_channel_case33", "grid_channel", .25),
+                                          ("renewable_collection_case33", "renewable", .35)]:
+        devices.append({"device_id": device_id, "device_type": device_type,
+                        "rated_kw": max(500.0, peak_load_kw * scale),
+                        **_line_fragility(1.0), "normal_factor": 1.0,
+                        "derate_factor": .65 if device_type == "transformer" else .55,
+                        "recovery_factor": .85})
+    metadata = {"peak_load_kw": peak_load_kw, "node_count": float(len(nodes)),
+                "line_count": float(len(lines)), "source": "MATPOWER case33bw / Baran-Wu"}
+    return pd.DataFrame(devices), lines, nodes, metadata
+
+
 def build_load_reachability(hazard_df: pd.DataFrame) -> pd.DataFrame:
     """Create a lightweight load reachability sequence from hazard intensity."""
     hazard = hazard_df.copy()
