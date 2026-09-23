@@ -30,7 +30,11 @@ sys.path.insert(0, str(ROOT / "topic2_remaining_code"))
 
 from resilience_reliability_planner import PlanningConfig, run_simple_planning
 from strategy_trigger import StrategyThresholds, trigger_strategies
-from scripts.run_paper_reference_case33 import run_conditional_event_samples, simulate_line_states
+from scripts.run_paper_reference_case33 import (
+    run_conditional_event_samples,
+    sample_source_load_sequences,
+    simulate_line_states,
+)
 
 
 def _resolve(root: Path, value: str) -> Path:
@@ -150,6 +154,7 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
         raise ValueError("event_samples must be at least one")
     sample_failure_sets = [failed_sets]
     sample_resource_sequences = [source]
+    sample_source_sequences = sample_source_load_sequences(source, seed, sample_count)
     resource_failure_logs = [baseline_resource_failures]
     if event_starts and sample_count >= 2:
         for sample in range(1, sample_count):
@@ -185,7 +190,8 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
             run_conditional_event_samples(source, sample_failure_sets, network, int(event_id),
                                           start, float(soc_before[start]), seed, sample_count,
                                           out / "events" / f"event_{int(event_id):04d}",
-                                          resource_sequences=sample_resource_sequences)
+                                          resource_sequences=sample_resource_sequences,
+                                          source_sequences=sample_source_sequences)
     pd.DataFrame(stage_rows, columns=["event_id", "stage", "phase_boundary_basis",
                                       "hours", "lole_hours", "eens_kwh",
                                       "curtailment_kwh", "critical_supply_ratio",
@@ -207,6 +213,13 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
         "phase_boundary_basis": "test split of generated 36-hour window, not inferred physical disaster phases",
         "line_failure_model": "weather-conditional test rates, not calibrated fragility curves",
         "random_seed": seed, "conditional_event_samples": sample_count,
+        "source_load_uncertainty": {
+            "sample_count": sample_count,
+            "model": "correlated multiplicative AR(1) residuals around the certified trajectory",
+            "load_sigma": 0.03, "renewable_sigma": 0.06,
+            "persistence": 0.85, "seed_offset": 700000,
+            "reference_path_preserved": True,
+        },
         "config_effective": {"topology_dir": str(case33_dir), "network": vars(cfg)},
         "input_hash_sha256": input_hash,
         "nodes_sha256": hashlib.sha256((case33_dir / "nodes.csv").read_bytes()).hexdigest(),

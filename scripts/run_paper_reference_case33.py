@@ -109,7 +109,8 @@ def run_conditional_event_samples(sequence: pd.DataFrame, sample_failure_sets: l
                                   network: Case33NetworkBalance, event_id: int, start: int,
                                   initial_soc_kwh: float, seed: int, sample_count: int,
                                   output_dir: Path,
-                                  resource_sequences: list[pd.DataFrame] | None = None) -> dict:
+                                  resource_sequences: list[pd.DataFrame] | None = None,
+                                  source_sequences: list[pd.DataFrame] | None = None) -> dict:
     if sample_count < 2:
         raise ValueError("At least two conditional samples are needed for uncertainty intervals")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -121,17 +122,17 @@ def run_conditional_event_samples(sequence: pd.DataFrame, sample_failure_sets: l
         soc = initial_soc_kwh
         for offset in range(36):
             i = start + offset
-            entry = sequence.iloc[i]
-            resource_entry = resource_sequences[sample].iloc[i] if resource_sequences is not None else entry
+            source_entry = source_sequences[sample].iloc[i] if source_sequences is not None else sequence.iloc[i]
+            resource_entry = resource_sequences[sample].iloc[i] if resource_sequences is not None else source_entry
             row, soc, state, ac = network.dispatch_hour_ac_balanced(
-                entry.timestamp, entry.load_kw, entry.wind_kw, entry.pv_kw,
+                source_entry.timestamp, source_entry.load_kw, source_entry.wind_kw, source_entry.pv_kw,
                 failures[i], soc, **resource_limits_from_row(resource_entry))
             if not ac["ac_voltage_within_bounds"] or ac["ac_root_required_kw"] > row["grid_available_kw"] + 1e-5:
                 raise RuntimeError(f"Conditional sample {sample} hour {offset} failed AC screen")
             records.append({"sample_id": sample, "seed": sample_seed,
                             "sample_weight": 1.0 / sample_count, "event_id": event_id,
                             "hour_offset": offset, "stage": stages[offset],
-                            "timestamp": entry.timestamp, "ac_min_voltage_pu": ac["ac_min_voltage_pu"],
+                            "timestamp": source_entry.timestamp, "ac_min_voltage_pu": ac["ac_min_voltage_pu"],
                             **row})
     event_hourly = pd.DataFrame(records)
     event_hourly.to_csv(output_dir / "event_conditional_hourly.csv", index=False)
@@ -193,9 +194,45 @@ def run_conditional_event_samples(sequence: pd.DataFrame, sample_failure_sets: l
             "convergence": str(output_dir / "event_convergence.csv")}
 
 
+def sample_source_load_sequences(sequence: pd.DataFrame, seed: int, sample_count: int,
+                                 load_sigma: float = 0.03,
+                                 renewable_sigma: float = 0.06,
+                                 persistence: float = 0.85) -> list[pd.DataFrame]:
+    """Generate paired source/load uncertainty paths around the certified path.
+
+    The first path is the unmodified reference trajectory. Other paths use
+    correlated multiplicative residuals, clipped to non-negative values. The
+    perturbation is a downstream uncertainty sample; it never replaces the
+    paper's certified annual trajectory or its event constraints.
+    """
+    if sample_count < 1 or not 0.0 <= persistence < 1.0:
+        raise ValueError("sample_count must be positive and persistence must be in [0, 1)")
+    base = sequence.copy()
+    paths = [base]
+    n = len(base)
+    rng = np.random.default_rng(seed + 700_000)
+    for sample_id in range(1, sample_count):
+        out = base.copy()
+        load_resid = np.zeros(n)
+        renewable_resid = np.zeros(n)
+        for i in range(1, n):
+            load_resid[i] = persistence * load_resid[i - 1] + np.sqrt(1 - persistence ** 2) * rng.normal()
+            renewable_resid[i] = persistence * renewable_resid[i - 1] + np.sqrt(1 - persistence ** 2) * rng.normal()
+        load_factor = np.clip(1.0 + load_sigma * load_resid, 0.75, 1.25)
+        renewable_factor = np.clip(1.0 + renewable_sigma * renewable_resid, 0.50, 1.50)
+        out["load_kw"] = np.maximum(0.0, base["load_kw"].to_numpy(float) * load_factor)
+        out["wind_kw"] = np.maximum(0.0, base["wind_kw"].to_numpy(float) * renewable_factor)
+        out["pv_kw"] = np.maximum(0.0, base["pv_kw"].to_numpy(float) * renewable_factor)
+        out["random_sequence_id"] = f"{base['random_sequence_id'].iloc[0]}_source_sample{sample_id}"
+        out["sequence_weight"] = 1.0 / sample_count
+        paths.append(out)
+    return paths
+
+
 def run_paired_sensitivity(sequence: pd.DataFrame, network: Case33NetworkBalance,
                            sample_failure_sets: list[list[set[int]]], events: list[dict],
-                           soc_before: dict[int, float], output_dir: Path) -> None:
+                           soc_before: dict[int, float], output_dir: Path,
+                           source_sequences: list[pd.DataFrame] | None = None) -> None:
     """Compare interventions with the same source/load trajectory and failure draws."""
     no_storage = Case33NetworkBalance(network.nodes, network.lines,
                                       replace(network.cfg, storage_power_kw=0.0, storage_energy_kwh=0.0))
@@ -222,7 +259,7 @@ def run_paired_sensitivity(sequence: pd.DataFrame, network: Case33NetworkBalance
                 deficits = []
                 for offset in range(36):
                     i = start + offset
-                    entry = sequence.iloc[i]
+                    entry = source_sequences[sample].iloc[i] if source_sequences is not None else sequence.iloc[i]
                     row, soc, _, _ = model.dispatch_hour_ac_balanced(
                         entry.timestamp, entry.load_kw, entry.wind_kw, entry.pv_kw,
                         set() if ignore_failures else failures[i], soc,
@@ -401,6 +438,7 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                            "max_deficit_kw": float(group.power_deficit_kw.max())})
     pd.DataFrame(phase_rows).to_csv(output_dir / "event_phase_metrics.csv", index=False)
     sample_failure_sets = [failed_sets]
+    source_sequences = sample_source_load_sequences(sequence, seed, event_samples)
     for sample in range(1, event_samples):
         other, _, _ = simulate_line_states(raw.wind_speed.to_numpy(float), line_ids,
                                            seed + 1000 * sample, raw.time, event_ids)
@@ -412,7 +450,8 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
         result = run_conditional_event_samples(sequence, sample_failure_sets, network,
                                                event["event_id"], event["start_index"],
                                                float(soc_at_event_start[event["event_id"]]),
-                                               seed, event_samples, event_dir)
+                                               seed, event_samples, event_dir,
+                                               source_sequences=source_sequences)
         conditional.append({**event, **result})
         frame = pd.read_csv(event_dir / "event_phase_conditional_metrics.csv")
         frame["wind_exposure_level"] = event["wind_exposure_level"]
@@ -426,7 +465,8 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                      "event_convergence.csv"):
         shutil.copyfile(high_dir / filename, output_dir / filename)
     run_paired_sensitivity(sequence, network, sample_failure_sets, events,
-                           soc_at_event_start, output_dir)
+                           soc_at_event_start, output_dir,
+                           source_sequences=source_sequences)
     triggers = trigger_strategies(metrics, StrategyThresholds(**project_config.get("strategy_thresholds", {})))
     triggers.to_csv(output_dir / "strategies.csv", index=False)
     plan = run_simple_planning(metrics, triggers, PlanningConfig(**project_config.get("planning", {})))
@@ -446,6 +486,15 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                "weather_selected_events": events,
                "resources": vars(resources), "failures": len(failures), "metrics": metrics,
                "conditional_event": conditional,
+               "source_load_uncertainty": {
+                   "sample_count": event_samples,
+                   "model": "correlated multiplicative AR(1) residuals around the certified trajectory",
+                   "load_sigma": 0.03,
+                   "renewable_sigma": 0.06,
+                   "persistence": 0.85,
+                   "seed_offset": 700000,
+                   "reference_path_preserved": True,
+               },
                "paired_sensitivity": str(output_dir / "paired_sensitivity_summary.csv"),
                "ac_screen": {"hours": len(ac_frame), "minimum_voltage_pu": float(ac_frame.ac_min_voltage_pu.min()),
                              "voltage_violations": int((~ac_frame.ac_voltage_within_bounds).sum()),
