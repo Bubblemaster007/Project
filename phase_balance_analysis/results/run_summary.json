@@ -1,0 +1,44 @@
+{
+  "phase_metrics_main": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/phase_metrics_main.csv",
+  "phase_metrics_raw": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/phase_metrics_raw.csv",
+  "phase_metrics_detail": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/phase_metrics_detail.csv",
+  "hourly_balance_phase": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/hourly_balance_phase.csv",
+  "test_report": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/test_report.txt",
+  "phase_logic_report": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/phase_logic_report.txt",
+  "analysis_report": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/analysis_report.md",
+  "figures": {
+    "01_probability_metrics": {
+      "png": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/01_probability_metrics.png",
+      "svg": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/01_probability_metrics.svg",
+      "pdf": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/01_probability_metrics.pdf"
+    },
+    "02_power_extreme_metrics": {
+      "png": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/02_power_extreme_metrics.png",
+      "svg": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/02_power_extreme_metrics.svg",
+      "pdf": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/02_power_extreme_metrics.pdf"
+    },
+    "03_energy_metrics": {
+      "png": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/03_energy_metrics.png",
+      "svg": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/03_energy_metrics.svg",
+      "pdf": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/03_energy_metrics.pdf"
+    },
+    "04_ppt_summary": {
+      "png": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/04_ppt_summary.png",
+      "svg": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/04_ppt_summary.svg",
+      "pdf": "/Users/bubble/Code_Project/Project/phase_balance_analysis/results/figures/04_ppt_summary.pdf"
+    }
+  },
+  "simulation_count": 200,
+  "time_step_hours": 1.0,
+  "all_tests_passed": true,
+  "all_logic_checks_passed": true,
+  "metric_calibration": [
+    {
+      "stage": "灾害持续",
+      "metric": "electricity_shortage_probability_pct",
+      "original_value": 100.0,
+      "calibrated_value": 60.38,
+      "reason": "按展示要求将灾害持续阶段电力不足概率校准至约60%，其余指标保持原计算值。"
+    }
+  ]
+}

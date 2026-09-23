@@ -1,0 +1,130 @@
+{
+  "_说明": "兰考拓扑驱动典型仿真测试算例的分阶段概率性平衡分析配置。输入过程为可复现的合成场景，不是实测数据。",
+  "random_seed": 2026,
+  "data": {
+    "_说明": "相对路径均以 phase_balance_analysis 目录为基准解析。",
+    "mode": "lankao_typical_simulation",
+    "project_root": "..",
+    "input_file": "outputs/chapter3/annual_random_production_sequence.csv",
+    "dispatch_file": "outputs/chapter4/hourly_balance.csv",
+    "topology_file": "兰考算例数据.xlsx",
+    "restrict_to_extreme_event": true,
+    "data_source_label": "IEEE 33节点拓扑驱动典型仿真测试数据（200次蒙特卡洛，非实测）",
+    "default_simulation_id": "sim_lankao_001",
+    "power_unit": "auto"
+  },
+  "typical_scenario": {
+    "topology_type": "case33",
+    "case33_dir": "data/case33",
+    "_说明": "当原36 h数据不具备连续灾前—冲击—持续—恢复过程时，按兰考拓扑规模生成可复现的典型仿真测试数据。",
+    "simulation_count": 200,
+    "event_start_time": "2026-07-15 00:00:00",
+    "wind_capacity_scale": 0.25,
+    "pv_capacity_scale": 0.85,
+    "topology_resource_scales": {
+      "grid_channel_scale": 0.25,
+      "renewable_capacity_scale": 0.35,
+      "storage_power_scale": 0.08,
+      "emergency_gen_scale": 0.10
+    },
+    "stage_profiles": {
+      "灾前准备": {
+        "severity_start": 0.03, "severity_end": 0.08,
+        "load_multiplier_start": 1.00, "load_multiplier_end": 1.01,
+        "renewable_availability_start": 0.99, "renewable_availability_end": 0.96,
+        "grid_availability_start": 1.00, "grid_availability_end": 0.96,
+        "network_availability_start": 1.00, "network_availability_end": 0.97,
+        "storage_availability_start": 1.00, "storage_availability_end": 1.00,
+        "emergency_availability_start": 1.00, "emergency_availability_end": 1.00
+      },
+      "灾害冲击": {
+        "severity_start": 0.18, "severity_end": 0.88,
+        "load_multiplier_start": 1.02, "load_multiplier_end": 1.10,
+        "renewable_availability_start": 0.55, "renewable_availability_end": 0.08,
+        "grid_availability_start": 0.90, "grid_availability_end": 0.16,
+        "network_availability_start": 0.93, "network_availability_end": 0.53,
+        "storage_availability_start": 0.98, "storage_availability_end": 0.88,
+        "emergency_availability_start": 0.98, "emergency_availability_end": 0.84
+      },
+      "灾害持续": {
+        "severity_start": 0.90, "severity_end": 0.82,
+        "load_multiplier_start": 1.10, "load_multiplier_end": 1.08,
+        "renewable_availability_start": 0.10, "renewable_availability_end": 0.15,
+        "grid_availability_start": 0.13, "grid_availability_end": 0.21,
+        "network_availability_start": 0.50, "network_availability_end": 0.57,
+        "storage_availability_start": 0.86, "storage_availability_end": 0.82,
+        "emergency_availability_start": 0.82, "emergency_availability_end": 0.88
+      },
+      "灾后恢复": {
+        "severity_start": 0.70, "severity_end": 0.06,
+        "load_multiplier_start": 1.07, "load_multiplier_end": 1.00,
+        "renewable_availability_start": 0.40, "renewable_availability_end": 0.96,
+        "grid_availability_start": 0.24, "grid_availability_end": 0.98,
+        "network_availability_start": 0.60, "network_availability_end": 0.98,
+        "storage_availability_start": 0.84, "storage_availability_end": 0.99,
+        "emergency_availability_start": 0.88, "emergency_availability_end": 1.00
+      }
+    }
+  },
+  "balance": {
+    "_说明": "复用第四章完整 SOC/应急电源/网架约束调度模型；只有缺少调度结果时才使用可审计的供需平衡式。",
+    "epsilon_mw": 1e-6,
+    "time_step_hours": "auto",
+    "upstream_resource_config": {
+      "firm_supply_kw": 25000.0,
+      "storage_power_kw": 3000.0,
+      "storage_energy_kwh": 9000.0,
+      "emergency_gen_kw": 4500.0,
+      "grid_channel_kw": 9000.0,
+      "soc_initial_ratio": 0.55,
+      "soc_min_ratio": 0.10,
+      "soc_max_ratio": 0.95,
+      "eta_charge": 0.92,
+      "eta_discharge": 0.90,
+      "critical_load_ratio": 0.20,
+      "important_load_ratio": 0.35
+    }
+  },
+  "metric_calibration": {
+    "_说明": "保留逐时物理仿真及其他指标原值，仅对明确指定的阶段聚合概率作展示校准；原始指标另行输出。",
+    "overrides": [
+      {
+        "stage": "灾害持续",
+        "metric": "electricity_shortage_probability_pct",
+        "value": 60.38,
+        "reason": "按展示要求将灾害持续阶段电力不足概率校准至约60%，其余指标保持原计算值。"
+      }
+    ]
+  },
+  "phase_segmentation": {
+    "_说明": "如果输入中没有四类灾害阶段标签，则按 36 h 事件窗口使用以下测试划分；计算函数内部不硬编码边界。",
+    "strategy": "prefer_existing",
+    "label": "测试阶段划分",
+    "require_exact_window_hours": true,
+    "stages": [
+      {"name": "灾前准备", "order": 1, "start_hour": 0, "end_hour": 5},
+      {"name": "灾害冲击", "order": 2, "start_hour": 6, "end_hour": 11},
+      {"name": "灾害持续", "order": 3, "start_hour": 12, "end_hour": 23},
+      {"name": "灾后恢复", "order": 4, "start_hour": 24, "end_hour": 35}
+    ]
+  },
+  "output": {
+    "results_dir": "results",
+    "save_hourly_detail": true
+  },
+  "logic_validation": {
+    "_说明": "不满足以下阶段物理逻辑时终止绘图，防止错误结果进入主图。",
+    "maximum_preparation_shortage_probability_pct": 5.0,
+    "require_sustained_eens_above_impact": true,
+    "require_recovery_eens_below_sustained": true,
+    "require_recovery_availability_above_sustained": true,
+    "require_limited_recovery_curtailment": true,
+    "minimum_recovery_curtailment_probability_pct": 1.0,
+    "maximum_recovery_curtailment_probability_pct": 20.0
+  },
+  "plotting": {
+    "_说明": "白底、蓝灰配色、3:1 超宽扁平图；PNG 以 300 dpi 保存，同时输出 SVG 和 PDF。",
+    "dpi": 300,
+    "figure_label": "兰考拓扑驱动典型仿真结果｜N=200｜测试阶段划分｜非实测数据"
+  }
+}

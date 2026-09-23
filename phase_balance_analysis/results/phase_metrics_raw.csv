@@ -1,0 +1,5 @@
+﻿stage,stage_order,electricity_shortage_probability_pct,curtailment_probability_pct,maximum_electricity_shortage_mw,maximum_curtailment_power_mw,expected_energy_not_served_mwh,expected_curtailed_energy_mwh,data_source,simulation_count,time_step_hours
+灾前准备,1,0.0,0.0,0.0,0.0,0.0,0.0,IEEE 33节点拓扑驱动典型仿真测试数据（200次蒙特卡洛，非实测）,200,1.0
+灾害冲击,2,39.33333333333333,0.0,1.4679695700461934,0.0,1.4122380601208857,0.0,IEEE 33节点拓扑驱动典型仿真测试数据（200次蒙特卡洛，非实测）,200,1.0
+灾害持续,3,100.0,0.0,2.0117720086843947,0.0,13.649683339723698,0.0,IEEE 33节点拓扑驱动典型仿真测试数据（200次蒙特卡洛，非实测）,200,1.0
+灾后恢复,4,40.458333333333336,1.7916666666666667,0.8296633915665327,0.4515006440857044,1.148337894718272,0.038788166852913704,IEEE 33节点拓扑驱动典型仿真测试数据（200次蒙特卡洛，非实测）,200,1.0

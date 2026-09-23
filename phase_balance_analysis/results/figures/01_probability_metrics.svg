@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400">
+<rect width="100%" height="100%" fill="#FFFFFF"/>
+<text x="600" y="38" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="34" fill="#263746">电力不足概率</text>
+<text x="600" y="68" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="19" fill="#5B6B78">兰考拓扑驱动典型仿真结果｜N=200｜测试阶段划分｜非实测数据</text>
+<text x="120" y="112" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">概率/%</text>
+<line x1="120" y1="325.0" x2="1140" y2="325.0" stroke="#DDE5EB" stroke-width="1.2"/>
+<text x="106" y="333.0" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">0.0</text>
+<line x1="120" y1="289.0" x2="1140" y2="289.0" stroke="#DDE5EB" stroke-width="1.2"/>
+<text x="106" y="297.0" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">20.0</text>
+<line x1="120" y1="253.0" x2="1140" y2="253.0" stroke="#DDE5EB" stroke-width="1.2"/>
+<text x="106" y="261.0" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">40.0</text>
+<line x1="120" y1="217.0" x2="1140" y2="217.0" stroke="#DDE5EB" stroke-width="1.2"/>
+<text x="106" y="225.0" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">60.0</text>
+<line x1="120" y1="181.0" x2="1140" y2="181.0" stroke="#DDE5EB" stroke-width="1.2"/>
+<text x="106" y="189.0" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">80.0</text>
+<line x1="120" y1="145.0" x2="1140" y2="145.0" stroke="#DDE5EB" stroke-width="1.2"/>
+<text x="106" y="153.0" text-anchor="end" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="23" fill="#5B6B78">100.0</text>
+<line x1="120" y1="145" x2="120" y2="325" stroke="#263746" stroke-width="2"/>
+<line x1="120" y1="325" x2="1140" y2="325" stroke="#263746" stroke-width="2"/>
+<text x="247.5" y="305.0" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="25" fill="#263746">0.00</text>
+<text x="247.5" y="375" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="26" fill="#263746">灾前准备</text>
+<rect x="464.2" y="254.2" width="76.5" height="70.8" rx="3" fill="#2F5D8A"/>
+<text x="502.5" y="234.2" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="25" fill="#263746">39.33</text>
+<text x="502.5" y="375" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="26" fill="#263746">灾害冲击</text>
+<rect x="719.2" y="216.3" width="76.5" height="108.7" rx="3" fill="#2F5D8A"/>
+<text x="757.5" y="196.3" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="25" fill="#263746">60.38</text>
+<text x="757.5" y="375" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="26" fill="#263746">灾害持续</text>
+<rect x="974.2" y="252.2" width="76.5" height="72.8" rx="3" fill="#2F5D8A"/>
+<text x="1012.5" y="232.2" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="25" fill="#263746">40.46</text>
+<text x="1012.5" y="375" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Source Han Sans SC, sans-serif" font-size="26" fill="#263746">灾后恢复</text>
+</svg>
