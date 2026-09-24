@@ -509,8 +509,9 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                              "grid_capacity_violations": int((~ac_frame.ac_grid_within_limit).sum()),
                              "maximum_ac_line_loss_kw": float(ac_frame.ac_line_loss_kw.max()),
                              "maximum_abs_loss_reserve_error_kw": float(ac_frame.ac_loss_reserve_error_kw.abs().max())},
-               "limitations": ["Frozen SC-RCRB candidate bank and publication_protocol are unavailable locally",
-                               "Weather-conditional line failure rates and repair durations are test assumptions",
+               "limitations": ["Frozen SC-RCRB candidate bank is reused; this run does not retrain the paper model",
+                               "Three annual embedding requests are infeasible and remain explicitly recorded",
+                               "Weather-conditional line failure rates and repair durations are IEEE33 integration assumptions",
                                "Branch thermal ratings are study assumptions; LinDistFlow is an approximation with AC screening, not an AC optimal dispatch",
                                "One reference sequence does not estimate a calibrated event probability or Alashankou risk"],
                "hourly_balance": str(output_dir / "balance/hourly_balance.csv")}

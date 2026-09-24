@@ -1,6 +1,6 @@
 # 课题2全流程联调项目
 
-本项目将论文源荷数据与第3章设备故障、第4章电力电量平衡、第5章策略触发和第6章源储配置演示连接，用 IEEE 33 节点算例验证下游流程。论文 SC-RCRB 生成与年度嵌入的正式入口仍需外部冻结文件。
+本项目将论文源荷数据与第3章设备故障、第4章电力电量平衡、第5章策略触发和第6章源储配置演示连接，用 IEEE 33 节点算例验证下游流程。SC-RCRB 的训练与冻结候选库位于外部论文仓库；本项目负责调用其年度嵌入和下游分析。
 
 ## 当前进度（2026-09-24）
 
@@ -143,8 +143,8 @@ python run_phase_balance_analysis.py --config config/phase_balance_config.yaml
 ## 依据与未完成项
 
 - 33 节点数据与基值来自 [MATPOWER case33bw](https://matpower.org/docs/ref/matpower6.0/case33bw.html)；径向潮流近似参考 [Baran 与 Wu 的 DistFlow 论文](https://ecal.berkeley.edu/tbsi/Energy-Systems-Optimization-Course/References/Baran89%20-%20UCB%20-%20DistFlow.pdf)。`case33bw` 未提供可直接使用的线路热额定值，当前统一 5000 kW 仅为测试约束。
-- 需要补齐论文冻结模型、候选库和 `publication_protocol`，才能重跑 SC-RCRB 场景生成与年度认证；需要联合天气轨迹、设备故障修复数据及阿拉山口实际数据，才能校准条件与年度风险。
-- 需要进一步验证孤岛成网资源、线路实测容量、应急燃料和滚动调度；当前第6章规划仍是启发式演示。
+- 论文冻结模型、候选库和 `publication_protocol` 不随本项目提交；运行 current_paper 入口时必须配置外部论文仓库路径。当前验收已成功调用已有候选库并完成年度认证。
+- 线路额定值、设备故障率、修复时长、资源接入位置仍是 IEEE 33 联调参数；这些属于真实数据接入后的校准项，不是本阶段流程阻塞项。当前第6章仍是启发式规划演示，不应表述为机会约束最优配置。
 
 ### 本机验证（2026-09-24）
 
