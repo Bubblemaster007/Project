@@ -182,7 +182,7 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
             continue
         start = int(indices[0])
         event_status.append({"event_id": int(event_id), "status": "analyzed", "hours": 36,
-                             "reason": "6/6/12/12 test phase boundaries"})
+                             "reason": "configured phase boundaries"})
         event_hourly = hourly.iloc[start:start + 36].copy()
         event_hourly["stage"] = stage_names
         for stage, part in event_hourly.groupby("stage", sort=False):
@@ -219,7 +219,8 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
         "annual_status": "complete_dispatch", "valid_event_count": sum(x["status"] == "analyzed" for x in event_status),
         "event_stage_status": str(out / "event_stage_status.csv"),
         "weather_pairing": "reference calendar weather; generated extreme wind/solar may not be meteorologically consistent",
-        "phase_boundary_basis": "test split of generated 36-hour window, not inferred physical disaster phases",
+        "phase_boundary_basis": config.get("phase_segmentation", {}).get(
+            "basis", "configured phase boundaries over the generated 36-hour window"),
         "line_failure_model": "weather-conditional test rates, not calibrated fragility curves",
         "random_seed": seed, "conditional_event_samples": sample_count,
         "source_load_uncertainty": {
