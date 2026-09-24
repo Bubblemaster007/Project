@@ -1,0 +1,17 @@
+scenario,hazard,device_type,median_intensity,scale_intensity,exposure_probability,repair_hours,source,confidence
+base,wind,line,25.0,4.0,0.20,12,"wind fragility literature prior; DOI 10.1109/icepg67373.2025.11466894",low
+base,wind,transformer,32.0,5.0,0.08,18,"wind fragility literature prior; DOI 10.1109/icepg67373.2025.11466894",low
+base,wind,grid_channel,32.0,5.0,0.08,18,"wind fragility literature prior; DOI 10.1109/icepg67373.2025.11466894",low
+base,wind,renewable,28.0,5.0,0.12,8,"wind fragility literature prior; DOI 10.1109/icepg67373.2025.11466894",low
+base,icing,line,12.0,3.0,0.15,16,"icing fragility prior; engineering literature and line icing studies",low
+base,icing,transformer,18.0,4.0,0.05,24,"icing fragility prior; engineering literature and line icing studies",low
+base,rain,line,70.0,20.0,0.08,10,"wind-rain coupled fragility direction; DOI 10.1016/j.engfailanal.2026.111149",low
+base,heat,transformer,38.0,4.0,0.06,10,"thermal stress engineering prior",low
+conservative,wind,line,20.0,3.0,0.35,18,"sensitivity envelope around wind fragility prior",low
+conservative,wind,transformer,27.0,4.0,0.16,30,"sensitivity envelope around wind fragility prior",low
+conservative,icing,line,8.0,2.5,0.30,24,"sensitivity envelope around icing fragility prior",low
+conservative,rain,line,55.0,15.0,0.16,16,"sensitivity envelope around wind-rain prior",low
+optimistic,wind,line,30.0,5.0,0.10,8,"sensitivity envelope around wind fragility prior",low
+optimistic,wind,transformer,37.0,6.0,0.04,12,"sensitivity envelope around wind fragility prior",low
+optimistic,icing,line,16.0,4.0,0.08,10,"sensitivity envelope around icing fragility prior",low
+optimistic,rain,line,85.0,25.0,0.04,6,"sensitivity envelope around wind-rain prior",low

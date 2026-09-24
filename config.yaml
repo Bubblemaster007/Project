@@ -75,6 +75,12 @@
     "voltage_max_pu": 1.05,
     "linear_voltage_guard_pu": 0.955
   },
+  "fragility": {
+    "baseline_table": "data/fragility/baseline_fragility.csv",
+    "scenario": "base",
+    "exposure_hours": 8760,
+    "source_status": "literature_engineering_prior_not_local_measurement"
+  },
   "phase_segmentation": {
     "basis": "configured operational test phases; replace with event/recovery labels when available",
     "stages": [
