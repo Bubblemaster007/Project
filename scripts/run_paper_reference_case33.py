@@ -26,6 +26,30 @@ from strategy_trigger import StrategyThresholds, trigger_strategies
 from resilience_reliability_planner import PlanningConfig, run_simple_planning
 
 
+DEFAULT_PHASES = (("灾前准备", 0, 6), ("灾害冲击", 6, 12),
+                  ("灾害持续", 12, 24), ("灾后恢复", 24, 36))
+
+
+def phase_names_from_config(config: dict | None = None, window_hours: int = 36) -> list[str]:
+    """Expand configured half-open phase boundaries into hourly labels."""
+    entries = (config or {}).get("phase_segmentation", {}).get("stages")
+    if entries is None:
+        entries = [{"name": n, "start_hour": s, "end_hour": e}
+                   for n, s, e in DEFAULT_PHASES]
+    names = [None] * window_hours
+    for item in entries:
+        name, start, end = str(item["name"]), int(item["start_hour"]), int(item["end_hour"])
+        if start < 0 or end > window_hours or start >= end:
+            raise ValueError(f"Invalid phase boundary: {item}")
+        for hour in range(start, end):
+            if names[hour] is not None:
+                raise ValueError(f"Overlapping phase boundary at hour {hour}")
+            names[hour] = name
+    if any(name is None for name in names):
+        raise ValueError("Phase boundaries must cover the whole event window")
+    return names
+
+
 def simulate_line_states(wind_speed: np.ndarray, line_ids: list[int], seed: int,
                          timestamps: pd.Series, event_ids: np.ndarray):
     """Sequential conditional line failures over the whole reference year."""
@@ -110,11 +134,12 @@ def run_conditional_event_samples(sequence: pd.DataFrame, sample_failure_sets: l
                                   initial_soc_kwh: float, seed: int, sample_count: int,
                                   output_dir: Path,
                                   resource_sequences: list[pd.DataFrame] | None = None,
-                                  source_sequences: list[pd.DataFrame] | None = None) -> dict:
+                                  source_sequences: list[pd.DataFrame] | None = None,
+                                  phase_config: dict | None = None) -> dict:
     if sample_count < 2:
         raise ValueError("At least two conditional samples are needed for uncertainty intervals")
     output_dir.mkdir(parents=True, exist_ok=True)
-    stages = ["灾前准备"] * 6 + ["灾害冲击"] * 6 + ["灾害持续"] * 12 + ["灾后恢复"] * 12
+    stages = phase_names_from_config(phase_config)
     records = []
     for sample in range(sample_count):
         sample_seed = seed if sample == 0 else seed + 1000 * sample
@@ -415,7 +440,7 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
     (output_dir / "balance/metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # Boundaries are an explicit test split, not inferred disaster physics.
-    phase_names = ["灾前准备"] * 6 + ["灾害冲击"] * 6 + ["灾害持续"] * 12 + ["灾后恢复"] * 12
+    phase_names = phase_names_from_config(project_config)
     phase_parts = []
     for event in events:
         part = hourly.iloc[event["start_index"]:event["start_index"] + 36].copy()
@@ -459,7 +484,8 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                                                event["event_id"], event["start_index"],
                                                float(soc_at_event_start[event["event_id"]]),
                                                seed, event_samples, event_dir,
-                                               source_sequences=source_sequences)
+                                               source_sequences=source_sequences,
+                                               phase_config=project_config)
         conditional.append({**event, **result})
         frame = pd.read_csv(event_dir / "event_phase_conditional_metrics.csv")
         frame["wind_exposure_level"] = event["wind_exposure_level"]

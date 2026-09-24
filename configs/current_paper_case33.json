@@ -75,6 +75,15 @@
     "voltage_max_pu": 1.05,
     "linear_voltage_guard_pu": 0.955
   },
+  "phase_segmentation": {
+    "basis": "configured operational test phases; replace with event/recovery labels when available",
+    "stages": [
+      {"name": "灾前准备", "start_hour": 0, "end_hour": 6},
+      {"name": "灾害冲击", "start_hour": 6, "end_hour": 12},
+      {"name": "灾害持续", "start_hour": 12, "end_hour": 24},
+      {"name": "灾后恢复", "start_hour": 24, "end_hour": 36}
+    ]
+  },
   "strategy_thresholds": {
     "loss_of_load_probability": 0.02,
     "curtailment_probability": 0.05,

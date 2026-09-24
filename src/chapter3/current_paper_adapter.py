@@ -32,6 +32,7 @@ from resilience_reliability_planner import PlanningConfig, run_simple_planning
 from strategy_trigger import StrategyThresholds, trigger_strategies
 from scripts.run_paper_reference_case33 import (
     run_conditional_event_samples,
+    phase_names_from_config,
     sample_source_load_sequences,
     simulate_line_states,
 )
@@ -146,7 +147,7 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
     metrics = summarize_network_balance(hourly)
     write_json(balance_dir / "metrics.json", metrics)
 
-    stage_names = ["灾前准备"] * 6 + ["灾害冲击"] * 6 + ["灾害持续"] * 12 + ["灾后恢复"] * 12
+    stage_names = phase_names_from_config(config)
     stage_rows = []
     event_status = []
     sample_count = int(config.get("paper_method", {}).get("event_samples", 10))
@@ -198,7 +199,8 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
                                           start, float(soc_before[start]), seed, sample_count,
                                           out / "events" / f"event_{int(event_id):04d}",
                                           resource_sequences=sample_resource_sequences,
-                                          source_sequences=sample_source_sequences)
+                                          source_sequences=sample_source_sequences,
+                                          phase_config=config)
     pd.DataFrame(stage_rows, columns=["event_id", "stage", "phase_boundary_basis",
                                       "hours", "lole_hours", "eens_kwh",
                                       "curtailment_kwh", "critical_supply_ratio",
