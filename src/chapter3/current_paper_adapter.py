@@ -36,6 +36,7 @@ from scripts.run_paper_reference_case33 import (
     sample_source_load_sequences,
     simulate_line_states,
 )
+from src.chapter3.fragility_curves import load_baseline
 
 
 def _resolve(root: Path, value: str) -> Path:
@@ -97,6 +98,11 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
     nodes = pd.read_csv(case33_dir / "nodes.csv")
     lines = pd.read_csv(case33_dir / "lines.csv")
     cfg = NetworkBalanceConfig.from_project(config)
+    frag_cfg = config.get("fragility", {})
+    frag_path = _resolve(ROOT, frag_cfg.get("baseline_table", "data/fragility/baseline_fragility.csv"))
+    fragility_table = load_baseline(frag_path)
+    fragility_scenario = str(frag_cfg.get("scenario", "base"))
+    exposure_hours = float(frag_cfg.get("exposure_hours", 8760.0))
     network = Case33NetworkBalance(nodes, lines, cfg)
     seed = int(config.get("paper_method", {}).get("seed", config.get("random_seed", 42)))
     source, baseline_resource_failures = simulate_resource_states(base_source, cfg, seed, 0)
@@ -104,7 +110,8 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
     event_ids = source.event_id.to_numpy(int)
     line_ids = lines.loc[lines.status.eq(1), "line"].astype(int).tolist()
     failed_sets, failures, rates = simulate_line_states(
-        source.wind_speed.to_numpy(float), line_ids, seed, source.timestamp, event_ids
+        source.wind_speed.to_numpy(float), line_ids, seed, source.timestamp, event_ids,
+        fragility_table, fragility_scenario, exposure_hours
     )
     pd.DataFrame(failures, columns=["timestamp", "line", "repair_hours", "event_id",
                                     "failure_rate_per_hour"]).to_csv(out / "line_failures.csv", index=False)
@@ -167,7 +174,8 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
     if event_starts and sample_count >= 2:
         for sample in range(1, sample_count):
             state, _, _ = simulate_line_states(source.wind_speed.to_numpy(float), line_ids,
-                                               seed + 1000 * sample, source.timestamp, event_ids)
+                                               seed + 1000 * sample, source.timestamp, event_ids,
+                                               fragility_table, fragility_scenario, exposure_hours)
             sample_failure_sets.append(state)
             resource_sequence, resource_failures = simulate_resource_states(
                 base_source, cfg, seed + 1000 * sample, sample)
@@ -233,6 +241,9 @@ def run_paper_downstream(annual: pd.DataFrame, config: dict, out: Path,
             "reference_path_preserved": True,
         },
         "config_effective": {"topology_dir": str(case33_dir), "network": vars(cfg)},
+        "fragility": {"table": str(frag_path), "scenario": fragility_scenario,
+                      "exposure_hours": exposure_hours,
+                      "source_status": frag_cfg.get("source_status", "unspecified")},
         "input_hash_sha256": input_hash,
         "nodes_sha256": hashlib.sha256((case33_dir / "nodes.csv").read_bytes()).hexdigest(),
         "lines_sha256": hashlib.sha256((case33_dir / "lines.csv").read_bytes()).hexdigest(),

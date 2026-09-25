@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT / "topic2_remaining_code"))
 from src.chapter4.case33_network_balance import Case33NetworkBalance, NetworkBalanceConfig, resource_limits_from_row, summarize_network_balance
 from strategy_trigger import StrategyThresholds, trigger_strategies
 from resilience_reliability_planner import PlanningConfig, run_simple_planning
+from src.chapter3.fragility_curves import hourly_hazard_from_table, load_baseline
 
 
 DEFAULT_PHASES = (("灾前准备", 0, 6), ("灾害冲击", 6, 12),
@@ -51,12 +52,28 @@ def phase_names_from_config(config: dict | None = None, window_hours: int = 36) 
 
 
 def simulate_line_states(wind_speed: np.ndarray, line_ids: list[int], seed: int,
-                         timestamps: pd.Series, event_ids: np.ndarray):
+                         timestamps: pd.Series, event_ids: np.ndarray,
+                         fragility_table: pd.DataFrame | None = None,
+                         fragility_scenario: str = "base",
+                         exposure_hours: float = 8760.0):
     """Sequential conditional line failures over the whole reference year."""
     q95, q99 = np.quantile(wind_speed, [0.95, 0.99])
     stress = np.clip((wind_speed - q95) / max(q99 - q95, 1e-6), 0.0, 1.0)
     # Explicit test rates per hour. Convert hazard rate to transition probability.
-    rate = 0.00001 + 0.004 * stress
+    if fragility_table is None:
+        rate = 0.00001 + 0.004 * stress
+        repair_low, repair_high = 5, 18
+        source = "legacy_wind_stress_prior"
+    else:
+        rows = fragility_table[(fragility_table.scenario == fragility_scenario) &
+                                (fragility_table.device_type == "line") &
+                                (fragility_table.hazard == "wind")]
+        if rows.empty:
+            raise ValueError(f"No line/wind fragility row for scenario {fragility_scenario}")
+        curve = rows.iloc[0]
+        rate = hourly_hazard_from_table(wind_speed, curve, exposure_hours)
+        repair_low = repair_high = int(curve.repair_hours)
+        source = str(curve.source)
     rng = np.random.default_rng(seed)
     remaining_repair = {line: 0 for line in line_ids}
     failed_sets = []
@@ -69,13 +86,15 @@ def simulate_line_states(wind_speed: np.ndarray, line_ids: list[int], seed: int,
                 remaining_repair[line] -= 1
                 failed.add(line)
             elif rng.random() < probability:
-                repair_hours = int(rng.integers(5, 18))
+                repair_hours = repair_low if repair_low == repair_high else int(rng.integers(repair_low, repair_high))
                 remaining_repair[line] = repair_hours - 1
                 failed.add(line)
                 failures.append({"timestamp": timestamps.iloc[hour], "line": line,
                                  "repair_hours": repair_hours,
                                  "event_id": int(event_ids[hour]),
-                                 "failure_rate_per_hour": float(rate_now)})
+                                 "failure_rate_per_hour": float(rate_now),
+                                 "fragility_scenario": fragility_scenario,
+                                 "fragility_source": source})
         failed_sets.append(failed)
     return failed_sets, failures, rate
 
@@ -321,6 +340,13 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
     nodes = pd.read_csv(case33_dir / "nodes.csv")
     lines = pd.read_csv(case33_dir / "lines.csv")
     resources = NetworkBalanceConfig.from_project(project_config)
+    frag_cfg = project_config.get("fragility", {})
+    frag_path = Path(frag_cfg.get("baseline_table", "data/fragility/baseline_fragility.csv"))
+    if not frag_path.is_absolute():
+        frag_path = ROOT / frag_path
+    fragility_table = load_baseline(frag_path)
+    fragility_scenario = str(frag_cfg.get("scenario", "base"))
+    exposure_hours = float(frag_cfg.get("exposure_hours", 8760.0))
     connected_by_open = _reachable_sets(lines, nodes)
     all_nodes = set(nodes.node.astype(int))
     weights = nodes.set_index("node").pd_kw.astype(float)
@@ -338,7 +364,8 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
         event_ids[s:s + 36] = event["event_id"]
     line_ids = lines.line.astype(int).tolist()
     failed_sets, failures, failure_rates = simulate_line_states(
-        raw.wind_speed.to_numpy(float), line_ids, seed, raw.time, event_ids)
+        raw.wind_speed.to_numpy(float), line_ids, seed, raw.time, event_ids,
+        fragility_table, fragility_scenario, exposure_hours)
     reachable = np.empty(len(raw), dtype=float)
     wind_reachable = np.empty(len(raw), dtype=bool)
     pv_reachable = np.empty(len(raw), dtype=bool)
@@ -372,7 +399,9 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
     output_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(events).to_csv(output_dir / "weather_selected_events.csv", index=False)
     sequence.to_csv(output_dir / "annual_sequence.csv", index=False)
-    pd.DataFrame(failures, columns=["timestamp", "line", "repair_hours", "event_id", "failure_rate_per_hour"]).to_csv(output_dir / "line_failures.csv", index=False)
+    pd.DataFrame(failures, columns=["timestamp", "line", "repair_hours", "event_id",
+                                    "failure_rate_per_hour", "fragility_scenario",
+                                    "fragility_source"]).to_csv(output_dir / "line_failures.csv", index=False)
     network = Case33NetworkBalance(nodes, lines, resources)
     soc = resources.soc_initial_ratio * resources.storage_energy_kwh
     dispatch_rows = []
@@ -474,7 +503,8 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
     )
     for sample in range(1, event_samples):
         other, _, _ = simulate_line_states(raw.wind_speed.to_numpy(float), line_ids,
-                                           seed + 1000 * sample, raw.time, event_ids)
+                                           seed + 1000 * sample, raw.time, event_ids,
+                                           fragility_table, fragility_scenario, exposure_hours)
         sample_failure_sets.append(other)
     conditional = []
     conditional_frames = []
@@ -519,6 +549,8 @@ def run(paper_csv: Path, output_dir: Path, seed: int = 42, event_samples: int = 
                "event_definition": "nonoverlapping weather-selected 36-hour windows at six-hour rolling wind quantiles 1.00/0.99/0.95; test split 6/6/12/12",
                "weather_selected_events": events,
                "resources": vars(resources), "failures": len(failures), "metrics": metrics,
+               "fragility": {"table": str(frag_path), "scenario": fragility_scenario,
+                             "exposure_hours": exposure_hours, "source_status": frag_cfg.get("source_status", "unspecified")},
                "conditional_event": conditional,
                "source_load_uncertainty": {
                    "sample_count": event_samples,
